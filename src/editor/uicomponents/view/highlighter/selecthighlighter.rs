@@ -1,4 +1,4 @@
-use std::{cmp::{max, min}, collections::HashMap};
+use std::collections::HashMap;
 use super::{syntaxhighlighter::SyntaxHighlighter, Annotation, AnnotationType, Line};
 use crate::prelude::*;
 
