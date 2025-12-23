@@ -27,7 +27,7 @@ use self::command::{
     Command::{self, Edit, Move, System},
     Edit::InsertNewline,
     Move::{Down, Left, Right, Up},
-    System::{Dismiss, Quit, Resize, Save, Search},
+    System::{Dismiss, Quit, Resize, Save, Search, Select},
 };
 
 const QUIT_TIMES: u8 = 3;
@@ -195,8 +195,12 @@ impl Editor {
             System(Quit | Resize(_) | Dismiss) => {} // Quit and Resize already handled above, others not applicable
             System(Search) => self.set_prompt(PromptType::Search),
             System(Save) => self.handle_save_command(),
+            System(Select(move_command)) => self.view.handle_select_command(move_command),
             Edit(edit_command) => self.view.handle_edit_command(edit_command),
-            Move(move_command) => self.view.handle_move_command(move_command),
+            Move(move_command) => {
+                self.view.dismiss_select();
+                self.view.handle_move_command(move_command);
+            },
         }
     }
 
@@ -254,7 +258,7 @@ impl Editor {
     }
     fn process_command_during_save(&mut self, command: Command) {
         match command {
-            System(Quit | Resize(_) | Search | Save) | Move(_) => {} // Not applicable during save, Resize already handled at this stage
+            System(Quit | Resize(_) | Search | Save | Select(_)) | Move(_) => {} // Not applicable during save, Resize already handled at this stage
             System(Dismiss) => {
                 self.set_prompt(PromptType::None);
                 self.update_message("Save aborted.");
@@ -300,7 +304,7 @@ impl Editor {
             }
             Move(Right | Down) => self.view.search_next(),
             Move(Up | Left) => self.view.search_prev(),
-            System(Quit | Resize(_) | Search | Save) | Move(_) => {} // Not applicable during save, Resize already handled at this stage
+            System(Quit | Resize(_) | Search | Save | Select(_)) | Move(_) => {} // Not applicable during save, Resize already handled at this stage
         }
     }
     // endregion

@@ -33,6 +33,7 @@ impl<'a> SearchResultHighlighter<'a> {
                 });
             });
     }
+    
     fn highlight_selected_match(&self, result: &mut Vec<Annotation>) {
         if let Some(selected_match) = self.selected_match {
             if self.matched_word.is_empty() {

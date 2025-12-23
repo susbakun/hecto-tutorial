@@ -14,6 +14,8 @@ pub enum Move {
     Right,
     Down,
 }
+
+
 impl TryFrom<KeyEvent> for Move {
     type Error = String;
     fn try_from(event: KeyEvent) -> Result<Self, Self::Error> {

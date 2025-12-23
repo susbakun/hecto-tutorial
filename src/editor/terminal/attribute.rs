@@ -98,6 +98,14 @@ impl From<AnnotationType> for Attribute {
                 }),
                 background: None,
             }, 
+            AnnotationType::Select => Self {
+                foreground: None,
+                background: Some(Color::Rgb {
+                    r: 38,
+                    g: 38,
+                    b: 38
+                })
+            }
         }
     }
 }

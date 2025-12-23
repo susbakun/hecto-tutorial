@@ -8,7 +8,7 @@ pub use system::System;
 mod edit;
 pub use edit::Edit;
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub enum Command {
     Move(Move),
     Edit(Edit),

@@ -6,6 +6,8 @@ use syntaxhighlighter::SyntaxHighlighter;
 mod rustsyntaxhighlighter;
 mod searchresulthighlighter;
 use rustsyntaxhighlighter::RustSyntaxHighlighter;
+mod selecthighlighter;
+use selecthighlighter::SelectHighlighter;
 
 fn create_syntax_highlighter(file_type: FileType) -> Option<Box<dyn SyntaxHighlighter>> {
     match file_type {
@@ -14,10 +16,20 @@ fn create_syntax_highlighter(file_type: FileType) -> Option<Box<dyn SyntaxHighli
     }
 }
 
+fn create_select_highlighter(selected_range: Option<(Location, Location)>) -> Option<SelectHighlighter> {
+    if let Some(selected_range) = selected_range {
+        Some(SelectHighlighter::new(selected_range))
+    }else {
+        None
+    }
+}
+
+
 #[derive(Default)]
 pub struct Highlighter<'a> {
     syntax_highlighter: Option<Box<dyn SyntaxHighlighter>>,
     search_result_highlighter: Option<SearchResultHighlighter<'a>>,
+    select_highlighter: Option<SelectHighlighter>
 }
 
 impl<'a> Highlighter<'a> {
@@ -25,12 +37,14 @@ impl<'a> Highlighter<'a> {
         matched_word: Option<&'a str>,
         selected_match: Option<Location>,
         file_type: FileType,
+        selected_range: Option<(Location, Location)>
     ) -> Self {
         let search_result_highlighter = matched_word
             .map(|matched_word| SearchResultHighlighter::new(matched_word, selected_match));
         Self {
             syntax_highlighter: create_syntax_highlighter(file_type),
             search_result_highlighter,
+            select_highlighter: create_select_highlighter(selected_range)
         }
     }
     pub fn get_annotations(&self, idx: LineIdx) -> Vec<Annotation> {
@@ -46,6 +60,13 @@ impl<'a> Highlighter<'a> {
                 result.extend(annotations.iter().copied());
             }
         }
+
+        if let Some(select_highlighter) = &self.select_highlighter {
+            if let Some(annotations) = select_highlighter.get_annotations(idx) {
+                result.extend(annotations.iter().copied());
+            }
+        }
+
         result
     }
     pub fn highlight(&mut self, idx: LineIdx, line: &Line) {
@@ -54,6 +75,10 @@ impl<'a> Highlighter<'a> {
         }
         if let Some(search_result_highlighter) = &mut self.search_result_highlighter {
             search_result_highlighter.highlight(idx, line);
+        }
+
+        if let Some(selecthighlighter) = &mut self.select_highlighter {
+            selecthighlighter.highlight(idx, line);
         }
     }
 }

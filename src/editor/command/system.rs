@@ -1,4 +1,5 @@
 use crate::prelude::*;
+use super::Move;
 use crossterm::event::{
     KeyCode::{self, Char},
     KeyEvent, KeyModifiers,
@@ -11,6 +12,7 @@ pub enum System {
     Quit,
     Dismiss,
     Search,
+    Select(Move)
 }
 
 impl TryFrom<KeyEvent> for System {
@@ -26,6 +28,18 @@ impl TryFrom<KeyEvent> for System {
                 Char('s') => Ok(Self::Save),
                 Char('f') => Ok(Self::Search),
                 _ => Err(format!("Unsupported CONTROL+{code:?} combination")),
+            }
+        } else if modifiers == KeyModifiers::SHIFT {
+            match code {
+                KeyCode::Up => Ok(Self::Select(Move::Up)),
+                KeyCode::Down => Ok(Self::Select(Move::Down)),
+                KeyCode::Left => Ok(Self::Select(Move::Left)),
+                KeyCode::Right => Ok(Self::Select(Move::Right)),
+                KeyCode::PageDown => Ok(Self::Select(Move::PageDown)),
+                KeyCode::PageUp => Ok(Self::Select(Move::PageUp)),
+                KeyCode::Home => Ok(Self::Select(Move::StartOfLine)),
+                KeyCode::End => Ok(Self::Select(Move::EndOfLine)),
+                _ => Err(format!("Unsupported code: {code:?}")),
             }
         } else if modifiers == KeyModifiers::NONE && matches!(code, KeyCode::Esc) {
             Ok(Self::Dismiss)

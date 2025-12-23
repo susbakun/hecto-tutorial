@@ -9,5 +9,6 @@ pub enum AnnotationType {
     Char,
     LifetimeSpecifier,
     Comment,
-    String
+    String,
+    Select
 }

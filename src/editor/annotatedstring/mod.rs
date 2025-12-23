@@ -29,7 +29,12 @@ impl AnnotatedString {
         start: ByteIdx,
         end: ByteIdx,
     ) {
-        debug_assert!(start <= end);
+        let (start, end) = if start <= end {
+            (start, end)
+        } else {
+            (end, start)
+        };
+        
         self.annotations.push(Annotation {
             annotation_type,
             start,

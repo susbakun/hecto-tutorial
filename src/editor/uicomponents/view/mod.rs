@@ -27,6 +27,7 @@ pub struct View {
     text_location: Location,
     scroll_offset: Position,
     search_info: Option<SearchInfo>,
+    select_range: Option<(Location, Location)>
 }
 
 impl View {
@@ -43,6 +44,11 @@ impl View {
 
     pub const fn is_file_loaded(&self) -> bool {
         self.buffer.is_file_loaded()
+    }
+
+    pub fn dismiss_select(&mut self) {
+        self.select_range = None;
+        self.set_needs_redraw(true);
     }
 
     // region: search
@@ -142,6 +148,20 @@ impl View {
     // endregion
 
     // region: command handling
+    pub fn handle_select_command(&mut self, command: Move) {
+        let start;
+        if let Some(selected_range) = self.select_range {
+            start = selected_range.0;
+        }else {
+            start = self.text_location;
+        }
+        self.handle_move_command(command);
+        let end = self.text_location;
+
+        self.select_range = Some((start, end));
+        self.set_needs_redraw(true);
+    }
+
     pub fn handle_edit_command(&mut self, command: Edit) {
         match command {
             Edit::Insert(character) => self.insert_char(character),
@@ -369,6 +389,7 @@ impl UIComponent for View {
             query,
             selected_match,
             self.buffer.get_file_info().get_file_type(),
+            self.select_range
         );
 
         for current_row in 0..end_y.saturating_add(scroll_top) {
