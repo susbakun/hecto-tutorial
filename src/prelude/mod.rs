@@ -3,6 +3,7 @@ pub type LineIdx = usize;
 pub type ByteIdx = usize;
 pub type ColIdx = usize;
 pub type RowIdx = usize;
+pub type SelectRange = (Location, Location);
 
 mod position;
 pub use position::Position;

@@ -191,6 +191,53 @@ impl Buffer {
             }
         }
     }
+
+    pub fn delete_range(&mut self, range: SelectRange) {
+        let (mut start, mut end) = range;
+        let was_backward = start.line_idx > end.line_idx 
+            || (start.line_idx == end.line_idx && start.grapheme_idx > end.grapheme_idx);
+
+        // Normalize: ensure start comes before end
+        if was_backward {
+            std::mem::swap(&mut start, &mut end);
+        }
+
+        // Calculate total number of graphemes to delete
+        let deletion_count = if start.line_idx == end.line_idx {
+            // Single line: delete from start.grapheme_idx to end.grapheme_idx
+            end.grapheme_idx.saturating_sub(start.grapheme_idx)
+        } else {
+            // Multi-line: count graphemes from start to end
+            // First line: from start.grapheme_idx to end of line
+            // clippy::indexing_slicing: start has valid line index
+            #[allow(clippy::indexing_slicing)]
+            let first_line_len = self.lines[start.line_idx].grapheme_count();
+            let mut count = first_line_len.saturating_sub(start.grapheme_idx);
+
+            // Middle lines: entire lines
+            for line_idx in (start.line_idx + 1)..end.line_idx {
+                // clippy::indexing_slicing: line_idx is within valid range
+                #[allow(clippy::indexing_slicing)]
+                {
+                    count = count.saturating_add(self.lines[line_idx].grapheme_count());
+                }
+            }
+
+            // Last line: from start to end.grapheme_idx
+            count = count.saturating_add(end.grapheme_idx);
+            
+            // Handling new line chars
+            count = count.saturating_add(end.line_idx.saturating_sub(start.line_idx));
+            
+            count
+        };
+
+        // Delete the calculated number of graphemes
+        for _ in 0..deletion_count {
+            self.delete(start);
+        }
+    }
+
     pub fn insert_newline(&mut self, at: Location) {
         if at.line_idx == self.height() {
             self.lines.push(Line::default());

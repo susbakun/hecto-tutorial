@@ -16,7 +16,7 @@ fn create_syntax_highlighter(file_type: FileType) -> Option<Box<dyn SyntaxHighli
     }
 }
 
-fn create_select_highlighter(selected_range: Option<(Location, Location)>) -> Option<SelectHighlighter> {
+fn create_select_highlighter(selected_range: Option<SelectRange>) -> Option<SelectHighlighter> {
     if let Some(selected_range) = selected_range {
         Some(SelectHighlighter::new(selected_range))
     }else {
@@ -37,7 +37,7 @@ impl<'a> Highlighter<'a> {
         matched_word: Option<&'a str>,
         selected_match: Option<Location>,
         file_type: FileType,
-        selected_range: Option<(Location, Location)>
+        selected_range: Option<SelectRange>
     ) -> Self {
         let search_result_highlighter = matched_word
             .map(|matched_word| SearchResultHighlighter::new(matched_word, selected_match));

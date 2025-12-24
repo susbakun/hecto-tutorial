@@ -27,7 +27,7 @@ pub struct View {
     text_location: Location,
     scroll_offset: Position,
     search_info: Option<SearchInfo>,
-    select_range: Option<(Location, Location)>
+    selected_range: Option<SelectRange>
 }
 
 impl View {
@@ -47,7 +47,7 @@ impl View {
     }
 
     pub fn dismiss_select(&mut self) {
-        self.select_range = None;
+        self.selected_range = None;
         self.set_needs_redraw(true);
     }
 
@@ -150,7 +150,7 @@ impl View {
     // region: command handling
     pub fn handle_select_command(&mut self, command: Move) {
         let start;
-        if let Some(selected_range) = self.select_range {
+        if let Some(selected_range) = self.selected_range {
             start = selected_range.0;
         }else {
             start = self.text_location;
@@ -158,7 +158,7 @@ impl View {
         self.handle_move_command(command);
         let end = self.text_location;
 
-        self.select_range = Some((start, end));
+        self.selected_range = Some((start, end));
         self.set_needs_redraw(true);
     }
 
@@ -201,10 +201,31 @@ impl View {
         }
     }
     fn delete(&mut self) {
-        self.buffer.delete(self.text_location);
+        if let Some(selected_range) = self.selected_range {
+            let (mut start, mut end) = selected_range;
+
+            let was_backward = start.line_idx > end.line_idx 
+            || (start.line_idx == end.line_idx && start.grapheme_idx > end.grapheme_idx);
+
+            if was_backward {
+                std::mem::swap(&mut start, &mut end);
+            }
+
+            self.buffer.delete_range(selected_range);
+            self.dismiss_select();
+            self.text_location = start;
+        }
+        else {
+            self.buffer.delete(self.text_location);
+        }
         self.set_needs_redraw(true);
     }
+
     fn insert_char(&mut self, character: char) {
+        if let Some(_) = self.selected_range{
+            self.delete();
+        }
+
         let old_len = self.buffer.grapheme_count(self.text_location.line_idx);
         self.buffer.insert_char(character, self.text_location);
         let new_len = self.buffer.grapheme_count(self.text_location.line_idx);
@@ -389,7 +410,7 @@ impl UIComponent for View {
             query,
             selected_match,
             self.buffer.get_file_info().get_file_type(),
-            self.select_range
+            self.selected_range
         );
 
         for current_row in 0..end_y.saturating_add(scroll_top) {
