@@ -1,4 +1,5 @@
 use crate::prelude::*;
+use crate::editor::{AnnotationType, annotation::Annotation};
 use std::cmp::min;
 
 use super::{AnnotatedString, AnnotatedStringPart};
@@ -15,25 +16,96 @@ impl<'a> Iterator for AnnotatedStringIterator<'a> {
             return None;
         }
 
-        //Find the current active annotation
-        if let Some(annotation) = self
+        // Find all annotations that cover the current position
+        let active_annotations: Vec<&Annotation> = self
             .annotated_string
             .annotations
             .iter()
             .filter(|annotation| {
                 annotation.start <= self.current_idx && annotation.end > self.current_idx
             })
-            .last()
-        {
-            let end_idx = min(annotation.end, self.annotated_string.string.len());
-            let start_idx = self.current_idx;
-            self.current_idx = end_idx;
-            return Some(AnnotatedStringPart {
-                string: &self.annotated_string.string[start_idx..end_idx],
-                annotation_type: Some(annotation.annotation_type),
-            });
+            .collect();
+
+        if !active_annotations.is_empty() {
+            // Check if there's a Select annotation among the active ones
+            let select_annotation = active_annotations
+                .iter()
+                .find(|annotation| annotation.annotation_type 
+                    == AnnotationType::Select);
+
+
+            if let Some(select_ann) = select_annotation {
+                // Handle Select annotation with syntax highlighting preserved
+                let mut end_idx = min(select_ann.end, self.annotated_string.string.len());
+                
+                // Find the earliest boundary among all active annotations
+                // This ensures we break at syntax annotation boundaries
+                for annotation in &active_annotations {
+                    if annotation.annotation_type != AnnotationType::Select {
+                        end_idx = min(end_idx, annotation.end);
+                    }
+                }
+                
+                // Also check if any other annotation starts within the Select range
+                for annotation in &self.annotated_string.annotations {
+                    if annotation.annotation_type != AnnotationType::Select
+                        && annotation.start > self.current_idx
+                        && annotation.start < end_idx
+                    {
+                        end_idx = annotation.start;
+                    }
+                }
+
+                let start_idx = self.current_idx;
+                self.current_idx = end_idx;
+
+                let mut annotation_types: Vec<AnnotationType> = active_annotations
+                    .iter()
+                    .map(|a| a.annotation_type)
+                    .collect();
+
+
+                return Some(AnnotatedStringPart {
+                    string: &self.annotated_string.string[start_idx..end_idx],
+                    annotation_types,
+                });
+            } else {
+                // No Select annotation, find the next boundary considering all annotations
+                let mut end_idx = self.annotated_string.string.len();
+                
+                // Find the earliest end point among active annotations
+                for annotation in &active_annotations {
+                    end_idx = min(end_idx, annotation.end);
+                }
+                
+                // Check if any Select annotation starts before this end point
+                for annotation in &self.annotated_string.annotations {
+                    if annotation.annotation_type == AnnotationType::Select
+                        && annotation.start > self.current_idx
+                        && annotation.start < end_idx
+                    {
+                        end_idx = annotation.start;
+                        break;
+                    }
+                }
+
+                let start_idx = self.current_idx;
+                self.current_idx = end_idx;
+
+                // Collect all active annotation types
+                let annotation_types: Vec<AnnotationType> = active_annotations
+                    .iter()
+                    .map(|annotation| annotation.annotation_type)
+                    .collect();
+
+                return Some(AnnotatedStringPart {
+                    string: &self.annotated_string.string[start_idx..end_idx],
+                    annotation_types,
+                });
+            }
         }
-        // Find the boundary of the nearest annotation
+
+        // No active annotations - find the boundary of the nearest annotation
         let mut end_idx = self.annotated_string.string.len();
         for annotation in &self.annotated_string.annotations {
             if annotation.start > self.current_idx && annotation.start < end_idx {
@@ -45,7 +117,7 @@ impl<'a> Iterator for AnnotatedStringIterator<'a> {
 
         Some(AnnotatedStringPart {
             string: &self.annotated_string.string[start_idx..end_idx],
-            annotation_type: None,
+            annotation_types: vec![],
         })
     }
 }

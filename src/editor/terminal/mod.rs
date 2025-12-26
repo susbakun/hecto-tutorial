@@ -11,6 +11,7 @@ use crossterm::terminal::{
     EnterAlternateScreen, LeaveAlternateScreen, SetTitle,
 };
 use crossterm::{queue, Command};
+use std::fs::OpenOptions;
 use std::io::{stdout, Error, Write};
 
 use super::AnnotatedString;
@@ -102,19 +103,46 @@ impl Terminal {
         Self::move_caret_to(Position { row, col: 0 })?;
         Self::clear_line()?;
         annotated_string
-            .into_iter()
-            .try_for_each(|part| -> Result<(), Error> {
-                if let Some(annotation_type) = part.annotation_type {
-                    let attribute: Attribute = annotation_type.into();
-                    Self::set_attribute(&attribute)?;
-                }
+    .into_iter()
+    .try_for_each(|part| -> Result<(), Error> {
+        // Combine attributes from all annotation types
+        let mut combined_attribute = Attribute {
+            foreground: None,
+            background: None,
+        };
+        
+        for annotation_type in &part.annotation_types {
+            let attribute: Attribute = (*annotation_type).into();
+            // Prefer foreground from syntax annotations, background from Select
+            if attribute.foreground.is_some() {
+                combined_attribute.foreground = attribute.foreground;
+            }
+            if attribute.background.is_some(){
+                combined_attribute.background = attribute.background;
+            }
+        }
+        
+        if combined_attribute.foreground.is_some() || combined_attribute.background.is_some() {
+            Self::set_attribute(&combined_attribute)?;
+        }
 
-                Self::print(part.string)?;
-                Self::reset_color()?;
-                Ok(())
-            })?;
+        Self::print(part.string)?;
+        Self::reset_color()?;
+        Ok(())
+    })?;
         Ok(())
     }
+
+    #[allow(dead_code)]
+    pub fn print_in_debug_mode(msg: &str) -> Result<(), Error>{
+        let mut file = OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open("debug.log")?;
+
+        writeln!(file, "{}", msg)
+    }
+
     fn set_attribute(attribute: &Attribute) -> Result<(), Error> {
         if let Some(foreground_color) = attribute.foreground {
             Self::queue_command(SetForegroundColor(foreground_color))?;
