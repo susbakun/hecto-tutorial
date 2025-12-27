@@ -59,7 +59,7 @@ impl<'a> Iterator for AnnotatedStringIterator<'a> {
                 let start_idx = self.current_idx;
                 self.current_idx = end_idx;
 
-                let mut annotation_types: Vec<AnnotationType> = active_annotations
+                let annotation_types: Vec<AnnotationType> = active_annotations
                     .iter()
                     .map(|a| a.annotation_type)
                     .collect();
