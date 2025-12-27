@@ -2,9 +2,10 @@ use crossterm::event::{
     KeyCode::{Backspace, Char, Delete, Enter, Tab},
     KeyEvent, KeyModifiers,
 };
-#[derive(Clone, Copy, PartialEq)]
-pub enum Edit {
+#[derive(Clone, PartialEq)]
+pub enum Edit{
     Insert(char),
+    InsertText(String), // handling reverts for range deletes
     InsertNewline,
     Delete,
     DeleteBackward,

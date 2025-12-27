@@ -17,8 +17,8 @@ impl CommandBar {
     pub fn handle_edit_command(&mut self, command: Edit) {
         match command {
             Edit::Insert(character) => self.value.append_char(character),
-            Edit::Delete | Edit::InsertNewline | Edit::Revert => {}
             Edit::DeleteBackward => self.value.delete_last(),
+            _ => ()
         }
         self.set_needs_redraw(true);
     }

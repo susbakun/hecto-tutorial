@@ -137,13 +137,11 @@ impl View {
 
     pub fn save(&mut self) -> Result<(), Error> {
         self.buffer.save()?;
-        self.revert_buffer.clear();
         self.set_needs_redraw(true);
         Ok(())
     }
     pub fn save_as(&mut self, file_name: &str) -> Result<(), Error> {
         self.buffer.save_as(file_name)?;
-        self.revert_buffer.clear();
         self.set_needs_redraw(true);
         Ok(())
     }
@@ -165,7 +163,7 @@ impl View {
         self.set_needs_redraw(true);
     }
 
-    pub fn handle_edit_command(&mut self, command: Edit) {
+    pub fn handle_edit_command(&mut self, command: Edit, skip_revert_buffer: bool) {
         if command != Edit::Revert && 
             self.revert_buffer.len() > 100
         {
@@ -173,10 +171,12 @@ impl View {
         }
 
         match command {
-            Edit::Insert(character) => self.insert_char(character),
-            Edit::Delete => self.delete(),
-            Edit::DeleteBackward => self.delete_backward(),
-            Edit::InsertNewline => self.insert_newline(),
+            Edit::Insert(character) => self.insert_char(character, skip_revert_buffer),
+            Edit::Delete => self.delete(skip_revert_buffer),
+            Edit::DeleteBackward => self.delete_backward(skip_revert_buffer),
+            Edit::InsertNewline => self.insert_newline(skip_revert_buffer),
+            Edit::InsertText(text) => self.insert_text(text, 
+                skip_revert_buffer),
             Edit::Revert => self.revert()
         }
     }
@@ -199,24 +199,26 @@ impl View {
 
     // endregion
     // region: Text editing
-    fn insert_newline(&mut self) {
+    fn insert_newline(&mut self, skip_revert_buffer: bool) {
         self.buffer.insert_newline(self.text_location);
 
-        let revert_command = (self.text_location, Edit::Delete);
-        self.revert_buffer.push(revert_command);
+        if !skip_revert_buffer {
+            let revert_command = (self.text_location, Edit::Delete);
+            self.revert_buffer.push(revert_command);
+        }
 
         self.handle_move_command(Move::Right);
         self.set_needs_redraw(true);
     }
 
-    fn delete_backward(&mut self) {
+    fn delete_backward(&mut self, skip_revert_buffer: bool) {
         if self.text_location.line_idx != 0 || self.text_location.grapheme_idx != 0 {
             self.handle_move_command(Move::Left);
-            self.delete();
+            self.delete(skip_revert_buffer);
         }
     }
 
-    fn delete(&mut self) {
+    fn delete(&mut self, skip_revert_buffer: bool) {
         if let Some(selected_range) = self.selected_range {
             let (mut start, mut end) = selected_range;
 
@@ -226,20 +228,32 @@ impl View {
             if was_backward {
                 std::mem::swap(&mut start, &mut end);
             }
-
+            
             self.buffer.delete_range(selected_range);
             self.dismiss_select();
             self.text_location = start;
         }
         else {
+            if !skip_revert_buffer {
+                let char = self.buffer.get_grapheme(self.text_location);
+                if let Some(char) = char{
+                    let revert_command;
+                    if char == '\n'{
+                        revert_command = (self.text_location, Edit::InsertNewline);
+                    } else {
+                        revert_command = (self.text_location, Edit::Insert(char));
+                    }
+                    self.revert_buffer.push(revert_command);
+                }
+            }
             self.buffer.delete(self.text_location);
         }
         self.set_needs_redraw(true);
     }
 
-    fn insert_char(&mut self, character: char) {
+    fn insert_char(&mut self, character: char, skip_revert_buffer: bool) {
         if let Some(_) = self.selected_range{
-            self.delete();
+            self.delete(false);
         }
 
         let old_len = self.buffer.grapheme_count(self.text_location.line_idx);
@@ -248,21 +262,26 @@ impl View {
         let grapheme_delta = new_len.saturating_sub(old_len);
         if grapheme_delta > 0 {
             //move right for an added grapheme (should be the regular case)
-            let revert_command = (self.text_location, Edit::Delete);
-            self.revert_buffer.push(revert_command);
+            if !skip_revert_buffer {
+                let revert_command = (self.text_location, Edit::Delete);
+                self.revert_buffer.push(revert_command);
+            }
 
             self.handle_move_command(Move::Right);
         }
         self.set_needs_redraw(true);
+    }
+
+    fn insert_text(&mut self, text: String, skip_revert_buffer: bool) {
+        todo!();
     }
     
     pub fn revert(&mut self) {
         let revert_command = self.revert_buffer.pop();
         if let Some(revert_command) = revert_command {
             self.text_location = revert_command.0;
-            self.handle_edit_command(revert_command.1);
-            // We emit an edit command for applying revert command.
-            // So we need to pop the last one which we emitted after applying it.
+            self.handle_edit_command(revert_command.1,
+                true);
         }
     }
 

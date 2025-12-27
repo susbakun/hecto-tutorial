@@ -196,7 +196,7 @@ impl Editor {
             System(Search) => self.set_prompt(PromptType::Search),
             System(Save) => self.handle_save_command(),
             System(Select(move_command)) => self.view.handle_select_command(move_command),
-            Edit(edit_command) => self.view.handle_edit_command(edit_command),
+            Edit(edit_command) => self.view.handle_edit_command(edit_command, false),
             Move(move_command) => {
                 self.view.dismiss_select();
                 self.view.handle_move_command(move_command);

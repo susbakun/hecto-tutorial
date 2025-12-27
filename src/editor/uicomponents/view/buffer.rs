@@ -249,10 +249,13 @@ impl Buffer {
         }
     }
 
-    pub fn get_grapheme(&self, at: Location) -> Option<char> {
+    pub fn get_grapheme(&mut self, at: Location) -> Option<char> {
         if let Some(line) = self.lines.get(at.line_idx) {
-            debug_assert!(at.grapheme_idx < line.grapheme_count());
-            return line.chars().nth(at.grapheme_idx)
+            if at.grapheme_idx < line.grapheme_count(){
+                return line.chars().nth(at.grapheme_idx);
+            } else if at.grapheme_idx == line.grapheme_count() {
+                return Some('\n')
+            }
         }
         None
     }
