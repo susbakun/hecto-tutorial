@@ -27,7 +27,8 @@ pub struct View {
     text_location: Location,
     scroll_offset: Position,
     search_info: Option<SearchInfo>,
-    selected_range: Option<SelectRange>
+    selected_range: Option<SelectRange>,
+    revert_buffer: Vec<RevertCommand>
 }
 
 impl View {
@@ -136,11 +137,13 @@ impl View {
 
     pub fn save(&mut self) -> Result<(), Error> {
         self.buffer.save()?;
+        self.revert_buffer.clear();
         self.set_needs_redraw(true);
         Ok(())
     }
     pub fn save_as(&mut self, file_name: &str) -> Result<(), Error> {
         self.buffer.save_as(file_name)?;
+        self.revert_buffer.clear();
         self.set_needs_redraw(true);
         Ok(())
     }
@@ -163,11 +166,18 @@ impl View {
     }
 
     pub fn handle_edit_command(&mut self, command: Edit) {
+        if command != Edit::Revert && 
+            self.revert_buffer.len() > 100
+        {
+                self.revert_buffer.remove(0);
+        }
+
         match command {
             Edit::Insert(character) => self.insert_char(character),
             Edit::Delete => self.delete(),
             Edit::DeleteBackward => self.delete_backward(),
             Edit::InsertNewline => self.insert_newline(),
+            Edit::Revert => self.revert()
         }
     }
     pub fn handle_move_command(&mut self, command: Move) {
@@ -191,15 +201,21 @@ impl View {
     // region: Text editing
     fn insert_newline(&mut self) {
         self.buffer.insert_newline(self.text_location);
+
+        let revert_command = (self.text_location, Edit::Delete);
+        self.revert_buffer.push(revert_command);
+
         self.handle_move_command(Move::Right);
         self.set_needs_redraw(true);
     }
+
     fn delete_backward(&mut self) {
         if self.text_location.line_idx != 0 || self.text_location.grapheme_idx != 0 {
             self.handle_move_command(Move::Left);
             self.delete();
         }
     }
+
     fn delete(&mut self) {
         if let Some(selected_range) = self.selected_range {
             let (mut start, mut end) = selected_range;
@@ -232,10 +248,24 @@ impl View {
         let grapheme_delta = new_len.saturating_sub(old_len);
         if grapheme_delta > 0 {
             //move right for an added grapheme (should be the regular case)
+            let revert_command = (self.text_location, Edit::Delete);
+            self.revert_buffer.push(revert_command);
+
             self.handle_move_command(Move::Right);
         }
         self.set_needs_redraw(true);
     }
+    
+    pub fn revert(&mut self) {
+        let revert_command = self.revert_buffer.pop();
+        if let Some(revert_command) = revert_command {
+            self.text_location = revert_command.0;
+            self.handle_edit_command(revert_command.1);
+            // We emit an edit command for applying revert command.
+            // So we need to pop the last one which we emitted after applying it.
+        }
+    }
+
     // endregion
 
     // region: Rendering

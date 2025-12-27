@@ -2,12 +2,13 @@ use crossterm::event::{
     KeyCode::{Backspace, Char, Delete, Enter, Tab},
     KeyEvent, KeyModifiers,
 };
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 pub enum Edit {
     Insert(char),
     InsertNewline,
     Delete,
     DeleteBackward,
+    Revert
 }
 impl TryFrom<KeyEvent> for Edit {
     type Error = String;
@@ -21,6 +22,7 @@ impl TryFrom<KeyEvent> for Edit {
             (Enter, KeyModifiers::NONE) => Ok(Self::InsertNewline),
             (Backspace, KeyModifiers::NONE) => Ok(Self::DeleteBackward),
             (Delete, KeyModifiers::NONE) => Ok(Self::Delete),
+            (Char('z'), KeyModifiers::CONTROL) => Ok(Self::Revert),
             _ => Err(format!(
                 "Unsupported key code {:?} with modifiers {:?}",
                 event.code, event.modifiers

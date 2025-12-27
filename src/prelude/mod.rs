@@ -4,6 +4,9 @@ pub type ByteIdx = usize;
 pub type ColIdx = usize;
 pub type RowIdx = usize;
 pub type SelectRange = (Location, Location);
+pub type RevertCommand = (Location, Edit);
+
+use crate::editor::command::Edit;
 
 mod position;
 pub use position::Position;

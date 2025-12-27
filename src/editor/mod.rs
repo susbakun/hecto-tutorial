@@ -7,7 +7,7 @@ use std::{
 };
 mod annotatedstring;
 pub mod annotationtype;
-mod command;
+pub mod command;
 mod documentstatus;
 mod line;
 mod terminal;

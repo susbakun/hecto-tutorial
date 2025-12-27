@@ -248,4 +248,12 @@ impl Buffer {
             self.dirty = true;
         }
     }
+
+    pub fn get_grapheme(&self, at: Location) -> Option<char> {
+        if let Some(line) = self.lines.get(at.line_idx) {
+            debug_assert!(at.grapheme_idx < line.grapheme_count());
+            return line.chars().nth(at.grapheme_idx)
+        }
+        None
+    }
 }
