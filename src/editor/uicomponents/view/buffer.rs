@@ -249,14 +249,64 @@ impl Buffer {
         }
     }
 
-    pub fn get_grapheme(&mut self, at: Location) -> Option<char> {
+    pub fn get_a_grapheme(&self, at: Location) -> Option<String> {
         if let Some(line) = self.lines.get(at.line_idx) {
-            if at.grapheme_idx < line.grapheme_count(){
-                return line.chars().nth(at.grapheme_idx);
+            if at.grapheme_idx < line.grapheme_count() {
+                // Extract the full grapheme at the given index (may be multi-character)
+                return line.get_a_grapheme(at.grapheme_idx);
             } else if at.grapheme_idx == line.grapheme_count() {
-                return Some('\n')
+                // At end of line, deleting merges with next line (deletes newline)
+                return Some("\n".to_string());
             }
         }
         None
+    }
+
+    pub fn get_range_grapheme(&self, range: SelectRange) -> String {
+        let (mut start, mut end) = range;
+        
+        // Normalize: ensure start comes before end
+        let was_backward = start.line_idx > end.line_idx 
+            || (start.line_idx == end.line_idx && start.grapheme_idx > end.grapheme_idx);
+        
+        if was_backward {
+            std::mem::swap(&mut start, &mut end);
+        }
+        
+        if start.line_idx == end.line_idx {
+            // Single line case: extract graphemes from start to end
+            if let Some(line) = self.lines.get(start.line_idx) {
+                return line.get_grapheme_range(start.grapheme_idx, end.grapheme_idx);
+            }
+            return String::new();
+        } else {
+            // Multi-line case
+            let mut graphemes = String::new();
+            
+            // First line: from start.grapheme_idx to end of line
+            if let Some(first_line) = self.lines.get(start.line_idx) {
+                let first_line_end = first_line.grapheme_count();
+                graphemes.push_str(&first_line.get_grapheme_range(start.grapheme_idx, first_line_end));
+            }
+            graphemes.push('\n');
+            
+            // Middle lines: entire lines (if any)
+            for line_idx in (start.line_idx + 1)..end.line_idx {
+                if let Some(line) = self.lines.get(line_idx) {
+                    let line_end = line.grapheme_count();
+                    graphemes.push_str(&line.get_grapheme_range(0, line_end));
+                    graphemes.push('\n');
+                }
+            }
+            
+            // Last line: from start to end.grapheme_idx
+            if let Some(last_line) = self.lines.get(end.line_idx) {
+                if end.grapheme_idx > 0 {
+                    graphemes.push_str(&last_line.get_grapheme_range(0, end.grapheme_idx));
+                }
+            }
+            
+            graphemes
+        }
     }
 }

@@ -228,6 +228,13 @@ impl View {
             if was_backward {
                 std::mem::swap(&mut start, &mut end);
             }
+
+            if !skip_revert_buffer {
+                let text = self.buffer.get_range_grapheme(selected_range);
+                let revert_command = (start,
+                    Edit::InsertText(text));
+                self.revert_buffer.push(revert_command);
+            }
             
             self.buffer.delete_range(selected_range);
             self.dismiss_select();
@@ -235,13 +242,17 @@ impl View {
         }
         else {
             if !skip_revert_buffer {
-                let char = self.buffer.get_grapheme(self.text_location);
-                if let Some(char) = char{
+                let grapheme = self.buffer.get_a_grapheme(self.text_location);
+                if let Some(grapheme) = grapheme {
                     let revert_command;
-                    if char == '\n'{
+                    if grapheme == "\n" {
                         revert_command = (self.text_location, Edit::InsertNewline);
+                    } else if grapheme.len() == 1 {
+                        // Single character grapheme
+                        revert_command = (self.text_location, Edit::Insert(grapheme.chars().next().unwrap()));
                     } else {
-                        revert_command = (self.text_location, Edit::Insert(char));
+                        // Multi-character grapheme
+                        revert_command = (self.text_location, Edit::InsertText(grapheme));
                     }
                     self.revert_buffer.push(revert_command);
                 }
@@ -273,7 +284,13 @@ impl View {
     }
 
     fn insert_text(&mut self, text: String, skip_revert_buffer: bool) {
-        todo!();
+        for ch in text.chars() {
+            if ch == '\n'{
+                self.insert_newline(skip_revert_buffer);
+            }else {
+                self.insert_char(ch, skip_revert_buffer);
+            }
+        }
     }
     
     pub fn revert(&mut self) {

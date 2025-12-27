@@ -244,6 +244,34 @@ impl Line {
             |fragment| fragment.start,
         )
     }
+    
+    /// Extract a substring by grapheme index range
+    pub fn get_grapheme_range(&self, start: GraphemeIdx, end: GraphemeIdx) -> String {
+        if start >= end || start >= self.grapheme_count() {
+            return String::new();
+        }
+        let start_byte = self.grapheme_idx_to_byte_idx(start);
+        let end_byte = if end >= self.grapheme_count() {
+            self.string.len()
+        } else {
+            self.grapheme_idx_to_byte_idx(end)
+        };
+        self.string[start_byte..end_byte].to_string()
+    }
+    
+    /// Extract a single grapheme at the given index
+    pub fn get_a_grapheme(&self, idx: GraphemeIdx) -> Option<String> {
+        if idx >= self.grapheme_count() {
+            return None;
+        }
+        let start_byte = self.grapheme_idx_to_byte_idx(idx);
+        let end_byte = if idx + 1 >= self.grapheme_count() {
+            self.string.len()
+        } else {
+            self.grapheme_idx_to_byte_idx(idx + 1)
+        };
+        Some(self.string[start_byte..end_byte].to_string())
+    }
     pub fn search_forward(
         &self,
         query: &str,
